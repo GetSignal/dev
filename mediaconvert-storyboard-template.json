@@ -1,0 +1,287 @@
+{
+  "Version": "2025-08-16",
+  "Description": "Signal VOD HLS (ABR) + storyboard pipeline companion. Outputs 240p/360p/480p/720p. QVBR; 2s segments. Storyboards are produced by a post-step Lambda (not MediaConvert).",
+  "UserMetadata": {
+    "project": "signal",
+    "profile": "vod_hls_abrladder",
+    "notes": "720p gated by source quality/engagement; prefer QVBR quality level ~6-7."
+  },
+  "Settings": {
+    "TimecodeConfig": {
+      "Source": "ZEROBASED"
+    },
+    "OutputGroups": [
+      {
+        "Name": "HLS ABR",
+        "OutputGroupSettings": {
+          "Type": "HLS_GROUP_SETTINGS",
+          "HlsGroupSettings": {
+            "Destination": "s3://YOUR_OUTPUT_BUCKET/YOUR_PREFIX/hls/",
+            "SegmentLength": 2,
+            "MinSegmentLength": 0,
+            "ManifestDurationFormat": "INTEGER",
+            "StreamInfResolution": "INCLUDE",
+            "ClientCache": "ENABLED",
+            "DirectoryStructure": "SINGLE_DIRECTORY",
+            "IndexNSegments": 5,
+            "KeepSegments": 20,
+            "ProgramDateTime": "EXCLUDE",
+            "ProgramDateTimePeriod": 600,
+            "CodecSpecification": "RFC_6381",
+            "OutputSelection": "MANIFESTS_AND_SEGMENTS",
+            "SegmentControl": "SEGMENTED_FILES",
+            "ManifestCompression": "NONE",
+            "TimedMetadataId3Frame": "PRIV",
+            "TimedMetadataId3Period": 10,
+            "CaptionLanguageSetting": "OMIT",
+            "IFrameOnlyManifest": "EXCLUDE"
+          }
+        },
+        "Outputs": [
+          {
+            "NameModifier": "_v240p",
+            "VideoDescription": {
+              "ScalingBehavior": "DEFAULT",
+              "AntiAlias": "ENABLED",
+              "Sharpness": 50,
+              "Height": 240,
+              "Width": 426,
+              "ColorMetadata": "INSERT",
+              "CodecSettings": {
+                "Codec": "H_264",
+                "H264Settings": {
+                  "RateControlMode": "QVBR",
+                  "QvbrSettings": {
+                    "QvbrQualityLevel": 7
+                  },
+                  "MaxBitrate": 300000,
+                  "GopSize": 2.0,
+                  "GopSizeUnits": "SECONDS",
+                  "NumberBFramesBetweenReferenceFrames": 2,
+                  "GopClosedCadence": 1,
+                  "EntropyEncoding": "CABAC",
+                  "SceneChangeDetect": "ENABLED",
+                  "SpatialAdaptiveQuantization": "ENABLED",
+                  "TemporalAdaptiveQuantization": "ENABLED",
+                  "FlickerAdaptiveQuantization": "ENABLED",
+                  "AdaptiveQuantization": "HIGH",
+                  "ParControl": "INITIALIZE_FROM_SOURCE",
+                  "CodecProfile": "MAIN",
+                  "CodecLevel": "AUTO",
+                  "SlowPal": "DISABLED",
+                  "Telecine": "NONE"
+                }
+              }
+            },
+            "AudioDescriptions": [
+              {
+                "AudioTypeControl": "FOLLOW_INPUT",
+                "AudioSourceName": "Audio Selector 1",
+                "CodecSettings": {
+                  "Codec": "AAC",
+                  "AacSettings": {
+                    "Bitrate": 128000,
+                    "CodingMode": "CODING_MODE_2_0",
+                    "SampleRate": 48000
+                  }
+                }
+              }
+            ],
+            "ContainerSettings": {
+              "Container": "M3U8"
+            },
+            "HlsSettings": {
+              "AudioGroupId": "program_audio"
+            }
+          },
+          {
+            "NameModifier": "_v360p",
+            "VideoDescription": {
+              "ScalingBehavior": "DEFAULT",
+              "AntiAlias": "ENABLED",
+              "Sharpness": 50,
+              "Height": 360,
+              "Width": 640,
+              "ColorMetadata": "INSERT",
+              "CodecSettings": {
+                "Codec": "H_264",
+                "H264Settings": {
+                  "RateControlMode": "QVBR",
+                  "QvbrSettings": {
+                    "QvbrQualityLevel": 7
+                  },
+                  "MaxBitrate": 600000,
+                  "GopSize": 2.0,
+                  "GopSizeUnits": "SECONDS",
+                  "NumberBFramesBetweenReferenceFrames": 2,
+                  "GopClosedCadence": 1,
+                  "EntropyEncoding": "CABAC",
+                  "SceneChangeDetect": "ENABLED",
+                  "SpatialAdaptiveQuantization": "ENABLED",
+                  "TemporalAdaptiveQuantization": "ENABLED",
+                  "FlickerAdaptiveQuantization": "ENABLED",
+                  "AdaptiveQuantization": "HIGH",
+                  "ParControl": "INITIALIZE_FROM_SOURCE",
+                  "CodecProfile": "MAIN",
+                  "CodecLevel": "AUTO",
+                  "SlowPal": "DISABLED",
+                  "Telecine": "NONE"
+                }
+              }
+            },
+            "AudioDescriptions": [
+              {
+                "AudioTypeControl": "FOLLOW_INPUT",
+                "AudioSourceName": "Audio Selector 1",
+                "CodecSettings": {
+                  "Codec": "AAC",
+                  "AacSettings": {
+                    "Bitrate": 128000,
+                    "CodingMode": "CODING_MODE_2_0",
+                    "SampleRate": 48000
+                  }
+                }
+              }
+            ],
+            "ContainerSettings": {
+              "Container": "M3U8"
+            },
+            "HlsSettings": {
+              "AudioGroupId": "program_audio"
+            }
+          },
+          {
+            "NameModifier": "_v480p",
+            "VideoDescription": {
+              "ScalingBehavior": "DEFAULT",
+              "AntiAlias": "ENABLED",
+              "Sharpness": 50,
+              "Height": 480,
+              "Width": 854,
+              "ColorMetadata": "INSERT",
+              "CodecSettings": {
+                "Codec": "H_264",
+                "H264Settings": {
+                  "RateControlMode": "QVBR",
+                  "QvbrSettings": {
+                    "QvbrQualityLevel": 7
+                  },
+                  "MaxBitrate": 1100000,
+                  "GopSize": 2.0,
+                  "GopSizeUnits": "SECONDS",
+                  "NumberBFramesBetweenReferenceFrames": 2,
+                  "GopClosedCadence": 1,
+                  "EntropyEncoding": "CABAC",
+                  "SceneChangeDetect": "ENABLED",
+                  "SpatialAdaptiveQuantization": "ENABLED",
+                  "TemporalAdaptiveQuantization": "ENABLED",
+                  "FlickerAdaptiveQuantization": "ENABLED",
+                  "AdaptiveQuantization": "HIGH",
+                  "ParControl": "INITIALIZE_FROM_SOURCE",
+                  "CodecProfile": "MAIN",
+                  "CodecLevel": "AUTO",
+                  "SlowPal": "DISABLED",
+                  "Telecine": "NONE"
+                }
+              }
+            },
+            "AudioDescriptions": [
+              {
+                "AudioTypeControl": "FOLLOW_INPUT",
+                "AudioSourceName": "Audio Selector 1",
+                "CodecSettings": {
+                  "Codec": "AAC",
+                  "AacSettings": {
+                    "Bitrate": 128000,
+                    "CodingMode": "CODING_MODE_2_0",
+                    "SampleRate": 48000
+                  }
+                }
+              }
+            ],
+            "ContainerSettings": {
+              "Container": "M3U8"
+            },
+            "HlsSettings": {
+              "AudioGroupId": "program_audio"
+            }
+          },
+          {
+            "NameModifier": "_v720p",
+            "VideoDescription": {
+              "ScalingBehavior": "DEFAULT",
+              "AntiAlias": "ENABLED",
+              "Sharpness": 50,
+              "Height": 720,
+              "Width": 1280,
+              "ColorMetadata": "INSERT",
+              "CodecSettings": {
+                "Codec": "H_264",
+                "H264Settings": {
+                  "RateControlMode": "QVBR",
+                  "QvbrSettings": {
+                    "QvbrQualityLevel": 7
+                  },
+                  "MaxBitrate": 3000000,
+                  "GopSize": 2.0,
+                  "GopSizeUnits": "SECONDS",
+                  "NumberBFramesBetweenReferenceFrames": 2,
+                  "GopClosedCadence": 1,
+                  "EntropyEncoding": "CABAC",
+                  "SceneChangeDetect": "ENABLED",
+                  "SpatialAdaptiveQuantization": "ENABLED",
+                  "TemporalAdaptiveQuantization": "ENABLED",
+                  "FlickerAdaptiveQuantization": "ENABLED",
+                  "AdaptiveQuantization": "HIGH",
+                  "ParControl": "INITIALIZE_FROM_SOURCE",
+                  "CodecProfile": "HIGH",
+                  "CodecLevel": "AUTO",
+                  "SlowPal": "DISABLED",
+                  "Telecine": "NONE"
+                }
+              }
+            },
+            "AudioDescriptions": [
+              {
+                "AudioTypeControl": "FOLLOW_INPUT",
+                "AudioSourceName": "Audio Selector 1",
+                "CodecSettings": {
+                  "Codec": "AAC",
+                  "AacSettings": {
+                    "Bitrate": 128000,
+                    "CodingMode": "CODING_MODE_2_0",
+                    "SampleRate": 48000
+                  }
+                }
+              }
+            ],
+            "ContainerSettings": {
+              "Container": "M3U8"
+            },
+            "HlsSettings": {
+              "AudioGroupId": "program_audio"
+            }
+          }
+        ]
+      }
+    ],
+    "Inputs": [
+      {
+        "FilterEnable": "AUTO",
+        "PsiControl": "USE_TS_PSI",
+        "FilterStrength": 0,
+        "DeblockFilter": "DISABLED",
+        "DenoiseFilter": "DISABLED",
+        "TimecodeSource": "ZEROBASED",
+        "VideoSelector": {},
+        "AudioSelectors": {
+          "Audio Selector 1": {
+            "DefaultSelection": "DEFAULT"
+          }
+        },
+        "CaptionSelectors": {},
+        "FileInput": "s3://YOUR_INPUT_BUCKET/path/to/source.mp4"
+      }
+    ]
+  }
+}
