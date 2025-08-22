@@ -65,9 +65,9 @@ class FeedFragment : Fragment() {
     }
     
     private fun nextClip() {
-        current?.let { emitViewEnd(items[currentIndex], it) }
-        current?.let { pool.release(it) }
-        currentIndex = nextIndex() ?: currentIndex
+        val next = nextIndex() ?: return
+        current?.let { emitViewEnd(items[currentIndex], it); pool.release(it) }
+        currentIndex = next
         current = pool.acquire()
         playerView.player = current?.exo()
         current?.play()

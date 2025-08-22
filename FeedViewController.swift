@@ -46,10 +46,10 @@ final class FeedViewController: UIViewController {
     }
     
     @objc private func nextClip() {
-        guard let c = current else { return }
+        guard let c = current, let next = nextIndex() else { return }
         emitViewEnd(for: items[currentIndex], using: c)
         pool.release(c)
-        currentIndex = nextIndex() ?? currentIndex
+        currentIndex = next
         current = pool.acquire()
         current?.attach(to: videoView)
         current?.onEvent = { [weak self] name, props in self?.handleEvent(name, props) }
