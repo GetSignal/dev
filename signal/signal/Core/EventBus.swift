@@ -117,11 +117,18 @@ class EventBus: EventBusProtocol {
         eventQueue.append(event)
         queueLock.unlock()
         
-        // Reset debounce timer
-        DispatchQueue.main.async { [weak self] in
-            self?.debounceTimer?.invalidate()
-            self?.debounceTimer = Timer.scheduledTimer(withTimeInterval: self?.debounceInterval ?? 0.2, repeats: false) { _ in
+        if isTestMode {
+            // In test mode, trigger flush immediately without debouncing
+            DispatchQueue.main.async { [weak self] in
                 self?.flushNow()
+            }
+        } else {
+            // Reset debounce timer for production
+            DispatchQueue.main.async { [weak self] in
+                self?.debounceTimer?.invalidate()
+                self?.debounceTimer = Timer.scheduledTimer(withTimeInterval: self?.debounceInterval ?? 0.2, repeats: false) { _ in
+                    self?.flushNow()
+                }
             }
         }
     }
