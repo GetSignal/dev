@@ -37,6 +37,9 @@ android {
     buildFeatures {
         compose = true
     }
+    defaultConfig {
+        buildConfigField("String", "API_BASE_URL", '"https://api.example.com"')
+    }
 }
 
 dependencies {
@@ -49,6 +52,10 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.viewpager2:viewpager2:1.0.0")
+    implementation("com.google.android.exoplayer:exoplayer:2.19.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -28,8 +28,11 @@ class VideoPlayerViewController: UIViewController {
     private var longPressTimer: Timer?
     
     // MARK: - Initialization
-    init(videoItem: VideoItem) {
+    private let sharedEventBus: EventBusProtocol?
+    
+    init(videoItem: VideoItem, eventBus: EventBusProtocol?) {
         self.videoItem = videoItem
+        self.sharedEventBus = eventBus
         self.scrubPreviewView = ScrubPreviewView(provider: storyboardProvider)
         super.init(nibName: nil, bundle: nil)
     }
@@ -167,10 +170,13 @@ class VideoPlayerViewController: UIViewController {
     private func setupPlayer() {
         guard let manifest = manifest else { return }
         
-        // Get player from pool or create new one
-        // In a real implementation, this would come from the PlayerPool
+        // For now, create a player and attach the shared EventBus
         player = PlayerKit()
-        player?.setEventBus(EventBus(endpoint: URL(string: ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "https://api.example.com/v1/events")!))
+        if let eb = sharedEventBus {
+            player?.setEventBus(eb)
+        } else {
+            player?.setEventBus(EventBus(endpoint: URL(string: ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "https://api.example.com")!.appendingPathComponent("/v1/events")))
+        }
         player?.prepare(
             hlsUrl: manifest.hlsUrl,
             videoId: manifest.videoId,

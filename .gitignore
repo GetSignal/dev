@@ -1,0 +1,34 @@
+# General
+.DS_Store
+.idea/
+*.iml
+*.log
+*.zip
+
+# Node
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Terraform
+.terraform/
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+
+# iOS/Xcode
+**/*.xcuserstate
+signal/signal.xcodeproj/xcuserdata/
+signal/signal.xcodeproj/project.xcworkspace/xcuserdata/
+DerivedData/
+
+# Android/Gradle
+signal-android/**/build/
+signal-android/.gradle/
+signal-android/local.properties
+
+# CocoaPods (if introduced later)
+Pods/
+

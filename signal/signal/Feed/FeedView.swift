@@ -25,7 +25,10 @@ struct FeedView: View {
                     items: viewModel.items,
                     playerPool: viewModel.playerPool,
                     eventBus: viewModel.eventBus,
-                    currentIndex: $currentIndex
+                    currentIndex: $currentIndex,
+                    onPrefetch: { index in
+                        Task { await viewModel.prefetchVideo(at: index) }
+                    }
                 )
                 .ignoresSafeArea()
                 .onChange(of: currentIndex) { newIndex in

@@ -1,0 +1,12 @@
+{
+  "name": "signal-scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node seed_videos.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.624.0"
+  }
+}
+

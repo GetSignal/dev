@@ -14,6 +14,7 @@ class VideoPageViewController: UIPageViewController {
     private var videoControllers: [VideoPlayerViewController] = []
     private var currentIndex: Int = 0
     private weak var feedDelegate: VideoPageDelegate?
+    var eventBus: EventBusProtocol?
     
     // MARK: - Initialization
     init() {
@@ -43,7 +44,7 @@ class VideoPageViewController: UIPageViewController {
         
         // Create view controllers for each video
         videoControllers = items.map { item in
-            let vc = VideoPlayerViewController(videoItem: item)
+            let vc = VideoPlayerViewController(videoItem: item, eventBus: eventBus)
             vc.delegate = self
             return vc
         }
@@ -153,9 +154,11 @@ struct VideoPageView: UIViewControllerRepresentable {
     let playerPool: PlayerPool
     let eventBus: EventBusProtocol
     @Binding var currentIndex: Int
+    var onPrefetch: ((Int) -> Void)
     
     func makeUIViewController(context: Context) -> VideoPageViewController {
         let controller = VideoPageViewController()
+        controller.eventBus = eventBus
         controller.setup(with: items, delegate: context.coordinator)
         return controller
     }
@@ -184,11 +187,8 @@ struct VideoPageView: UIViewControllerRepresentable {
         }
         
         func shouldPrefetchVideo(at index: Int) {
-            // Trigger prefetch
             guard index < parent.items.count else { return }
-            Task {
-                // Fetch manifest and prefetch with player pool
-            }
+            parent.onPrefetch(index)
         }
     }
 }
