@@ -84,7 +84,7 @@ public final class HttpEventBus: EventBus {
     }
 }
 
-public protocol PlayerKit: AnyObject {
+public protocol IOSPlayerKit: AnyObject {
     func prepare(hlsUrl: URL, initialBitrateCapKbps: Int?)
     func play(); func pause(); func seek(ms: Int64); func dispose()
     var onEvent: ((String, [String: Any]) -> Void)? { get set }
@@ -93,7 +93,7 @@ public protocol PlayerKit: AnyObject {
     var durationSeconds: Double { get }
 }
 
-public final class AVPlayerKit: NSObject, PlayerKit {
+public final class AVPlayerKit: NSObject, IOSPlayerKit {
     private let player = AVPlayer()
     private var itemObs: NSKeyValueObservation?
     private var rateObs: NSKeyValueObservation?

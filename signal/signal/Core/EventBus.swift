@@ -243,4 +243,11 @@ extension EventBusProtocol {
             "code": AnyCodable(code)
         ]))
     }
+
+    func trackPlaybackLoop(videoId: String, loopCount: Int) {
+        enqueue(TelemetryEvent(name: "playback_loop", props: [
+            "video_id": AnyCodable(videoId),
+            "loop_count": AnyCodable(loopCount)
+        ]))
+    }
 }

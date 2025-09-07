@@ -16,6 +16,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "API_BASE_URL", '"https://api.example.com"')
+        buildConfigField("boolean", "ENABLE_LONG_PRESS_SCRUB", "false")
     }
 
     buildTypes {
@@ -53,6 +55,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation("androidx.viewpager2:viewpager2:1.0.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("com.google.android.exoplayer:exoplayer:2.19.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 

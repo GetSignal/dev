@@ -95,7 +95,8 @@ class PlayerPool {
         nextPlayer?.prepare(
             hlsUrl: manifest.hlsUrl,
             videoId: manifest.videoId,
-            initialBitrateCapKbps: 700
+            initialBitrateCapKbps: 700,
+            autoPlay: false
         )
         
         // Prefetch initial seconds
@@ -118,7 +119,8 @@ class PlayerPool {
         previousPlayer?.prepare(
             hlsUrl: manifest.hlsUrl,
             videoId: manifest.videoId,
-            initialBitrateCapKbps: 700
+            initialBitrateCapKbps: 700,
+            autoPlay: false
         )
         
         // Prefetch less for previous (user less likely to go back)

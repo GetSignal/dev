@@ -22,6 +22,7 @@ class FeedViewModel: ObservableObject {
     let eventBus: EventBusProtocol
     private var cursor: String?
     private var cancellables = Set<AnyCancellable>()
+    private var backgroundAt: Date?
     
     private let apiBaseUrl: String
     
@@ -176,5 +177,25 @@ class FeedViewModel: ObservableObject {
     func cleanup() {
         playerPool.cleanup()
         eventBus.flushNow()
+    }
+
+    // MARK: - App Lifecycle
+    func didEnterBackground() {
+        backgroundAt = Date()
+        // Pause all players to be safe
+        playerPool.pauseAll()
+    }
+
+    func willEnterForeground() async {
+        if let t = backgroundAt, Date().timeIntervalSince(t) >= 120 {
+            // Cold start: release players and reload feed
+            cleanup()
+            items = []
+            currentIndex = 0
+            backgroundAt = nil
+            await loadInitialFeed()
+        } else {
+            backgroundAt = nil
+        }
     }
 }

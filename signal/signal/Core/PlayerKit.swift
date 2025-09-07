@@ -22,9 +22,11 @@ class PlayerKit: NSObject {
     private var videoId: String?
     private var initialBitrateCapKbps: Int = 700 // Default cap as per spec
     private var hasAppliedInitialBitrateCap = false
+    private var shouldAutoPlay: Bool = true
     private var playbackStartTime: Date?
     private var isPlaying = false
     private var wasPlayingBeforeScrub = false
+    private var isAttachedToView = false
     
     // Observers
     private var timeObserver: Any?
@@ -40,6 +42,7 @@ class PlayerKit: NSObject {
     private var rebufferCount = 0
     private var rebufferTotalMs = 0
     private var lastStallTime: Date?
+    private var loopCount = 0
     
     // MARK: - Initialization
     override init() {
@@ -56,20 +59,21 @@ class PlayerKit: NSObject {
         player.automaticallyWaitsToMinimizeStalling = false
         player.audiovisualBackgroundPlaybackPolicy = .pauses
         
-        // Set audio session for playback with audio ON
+        // Configure audio session category; activation handled by controller lifecycle
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
-        try? AVAudioSession.sharedInstance().setActive(true)
     }
     
     // MARK: - Public Interface
-    func prepare(hlsUrl: URL, videoId: String, initialBitrateCapKbps: Int = 700) {
+    func prepare(hlsUrl: URL, videoId: String, initialBitrateCapKbps: Int = 700, autoPlay: Bool = true) {
         cleanup()
         
         self.videoId = videoId
         self.initialBitrateCapKbps = initialBitrateCapKbps
+        self.shouldAutoPlay = autoPlay
         self.hasAppliedInitialBitrateCap = false
         self.ttffStartTime = Date()
         self.hasReportedTTFF = false
+        self.loopCount = 0
         
         let asset = AVURLAsset(url: hlsUrl)
         playerItem = AVPlayerItem(asset: asset)
@@ -79,6 +83,11 @@ class PlayerKit: NSObject {
         
         setupObservers()
         player.replaceCurrentItem(with: playerItem)
+    }
+
+    // Backward-compatible overload (keeps existing call sites working)
+    func prepare(hlsUrl: URL, videoId: String, initialBitrateCapKbps: Int = 700) {
+        prepare(hlsUrl: hlsUrl, videoId: videoId, initialBitrateCapKbps: initialBitrateCapKbps, autoPlay: true)
     }
     
     func play() {
@@ -91,6 +100,8 @@ class PlayerKit: NSObject {
     }
     
     func pause() {
+        // User-initiated pause should never auto-resume
+        shouldAutoPlay = false
         isPlaying = false
         player.pause()
     }
@@ -138,11 +149,17 @@ class PlayerKit: NSObject {
         view.layer.addSublayer(newLayer)
         
         playerLayer = newLayer
+        isAttachedToView = true
+        // If item already ready and autoplay allowed, start now
+        if shouldAutoPlay, let status = playerItem?.status, status == .readyToPlay {
+            DispatchQueue.main.async { [weak self] in self?.play() }
+        }
     }
     
     func detach() {
         playerLayer?.removeFromSuperlayer()
         playerLayer = nil
+        isAttachedToView = false
     }
     
     func prefetch(_ seconds: TimeInterval) {
@@ -217,10 +234,14 @@ class PlayerKit: NSObject {
         
         // Status observer
         statusObserver = item.observe(\.status) { [weak self] item, _ in
-            if item.status == .readyToPlay && !self!.hasReportedTTFF {
-                self?.reportTTFF()
+            guard let self = self else { return }
+            if item.status == .readyToPlay {
+                if !self.hasReportedTTFF { self.reportTTFF() }
+                if self.shouldAutoPlay && self.isAttachedToView {
+                    DispatchQueue.main.async { [weak self] in self?.play() }
+                }
             } else if item.status == .failed {
-                self?.handleError(item.error)
+                self.handleError(item.error)
             }
         }
         
@@ -246,6 +267,7 @@ class PlayerKit: NSObject {
                 self?.handleError(error)
             }
         }
+        NotificationCenter.default.addObserver(self, selector: #selector(handleEnded), name: .AVPlayerItemDidPlayToEndTime, object: item)
         
         // Periodic time observer for bitrate tracking
         let interval = CMTime(seconds: 5, preferredTimescale: 1)
@@ -292,9 +314,26 @@ class PlayerKit: NSObject {
         let errorCode = (error as NSError).code
         eventBus?.trackPlaybackError(videoId: videoId, code: "E_HLS_\(errorCode)")
     }
+
+    @objc private func handleEnded() {
+        guard let videoId = videoId else { return }
+        loopCount += 1
+        eventBus?.trackPlaybackLoop(videoId: videoId, loopCount: loopCount)
+        player.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            guard let self = self else { return }
+            if self.isAttachedToView {
+                self.play()
+            }
+        }
+    }
     
     // MARK: - Event Bus
     func setEventBus(_ eventBus: EventBusProtocol) {
         self.eventBus = eventBus
     }
+
+    // MARK: - State Exposure
+    var isCurrentlyPlaying: Bool { isPlaying }
+
+    // (Removed previewSeek helper to revert to prior behavior)
 }

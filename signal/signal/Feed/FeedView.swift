@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct FeedView: View {
     @StateObject private var viewModel = FeedViewModel()
@@ -21,18 +22,19 @@ struct FeedView: View {
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     .scaleEffect(1.5)
             } else if !viewModel.items.isEmpty {
-                VideoPageView(
+                FullScreenFeedView(
                     items: viewModel.items,
                     playerPool: viewModel.playerPool,
-                    eventBus: viewModel.eventBus,
-                    currentIndex: $currentIndex,
-                    onPrefetch: { index in
-                        Task { await viewModel.prefetchVideo(at: index) }
-                    }
+                    eventBus: viewModel.eventBus
                 )
                 .ignoresSafeArea()
                 .onChange(of: currentIndex) { newIndex in
                     viewModel.videoDidAppear(at: newIndex)
+                }
+            } else if viewModel.error == nil {
+                // Empty-state (no items, not loading, no error)
+                EmptyFeedView {
+                    Task { await viewModel.loadInitialFeed() }
                 }
             } else if let error = viewModel.error {
                 ErrorView(error: error) {
@@ -44,6 +46,15 @@ struct FeedView: View {
         }
         .task {
             await viewModel.loadInitialFeed()
+        }
+        .refreshable {
+            await viewModel.loadInitialFeed()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            viewModel.didEnterBackground()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            Task { await viewModel.willEnterForeground() }
         }
         .onDisappear {
             viewModel.cleanup()

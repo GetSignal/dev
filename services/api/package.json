@@ -4,14 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && esbuild src/feed.ts --platform=node --bundle --format=cjs --outfile=dist/feed/index.js && esbuild src/events.ts --platform=node --bundle --format=cjs --outfile=dist/events/index.js",
-    "pack": "npm run build && (cd dist/feed && zip -r ../feed.zip .) && (cd dist/events && zip -r ../events.zip .)"
+    "build": "rm -rf dist && mkdir -p dist && esbuild src/feed.ts --platform=node --bundle --format=cjs --outfile=dist/feed/index.js && esbuild src/events.ts --platform=node --bundle --format=cjs --outfile=dist/events/index.js && esbuild src/manifest.ts --platform=node --bundle --format=cjs --outfile=dist/manifest/index.js && esbuild src/trendingWriter.ts --platform=node --bundle --format=cjs --outfile=dist/trending-writer/index.js",
+    "pack": "npm run build && (cd dist/feed && zip -r ../feed.zip .) && (cd dist/events && zip -r ../events.zip .) && (cd dist/manifest && zip -r ../manifest.zip .) && (cd dist/trending-writer && zip -r ../trending-writer.zip .)"
   },
   "devDependencies": {
     "esbuild": "^0.21.5"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.624.0",
-    "@aws-sdk/client-firehose": "^3.624.0"
+    "@aws-sdk/client-firehose": "^3.624.0",
+    "@aws-sdk/client-secrets-manager": "^3.624.0",
+    "redis": "^4.6.14"
   }
 }

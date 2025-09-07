@@ -45,7 +45,7 @@ class HttpEventBus(
 
 // PlayerKit wrapper
 interface PlayerKit {
-    fun prepare(hlsUrl: String, initialBitrateCapKbps: Int? = null)
+    fun prepare(hlsUrl: String, initialBitrateCapKbps: Int? = null, videoId: String? = null)
     fun play(); fun pause(); fun seek(ms: Long); fun dispose()
     var onEvent: ((name: String, props: Map<String, Any?>) -> Unit)?
     fun exo(): ExoPlayer
@@ -57,6 +57,8 @@ class ExoPlayerKit(private val context: Context, private val eventBus: EventBus)
     private val trackSelector = DefaultTrackSelector(context)
     private val player = ExoPlayer.Builder(context).setTrackSelector(trackSelector).build()
     private var preparedAt: Long = 0L
+    private var loopCount: Int = 0
+    private var currentVideoId: String? = null
     override var onEvent: ((name: String, props: Map<String, Any?>) -> Unit)? = null
     private val analyticsListener = object : AnalyticsListener {
         override fun onRenderedFirstFrame(eventTime: AnalyticsListener.EventTime, output: Any, renderTimeMs: Long) {
@@ -67,7 +69,16 @@ class ExoPlayerKit(private val context: Context, private val eventBus: EventBus)
             when (state) {
                 Player.STATE_BUFFERING -> { onEvent?.invoke("rebuffer_start", emptyMap()); eventBus.enqueue(TelemetryEvent("rebuffer_start")) }
                 Player.STATE_READY -> { onEvent?.invoke("rebuffer_end", emptyMap()); eventBus.enqueue(TelemetryEvent("rebuffer_end")) }
-                Player.STATE_ENDED -> { onEvent?.invoke("ended", emptyMap()); eventBus.enqueue(TelemetryEvent("ended")) }
+                Player.STATE_ENDED -> {
+                    onEvent?.invoke("ended", emptyMap()); eventBus.enqueue(TelemetryEvent("ended"))
+                    // Seamless loop + telemetry
+                    loopCount += 1
+                    val vid = currentVideoId
+                    if (vid != null) eventBus.enqueue(TelemetryEvent("playback_loop", mapOf("video_id" to vid, "loop_count" to loopCount)))
+                    else eventBus.enqueue(TelemetryEvent("playback_loop", mapOf("loop_count" to loopCount)))
+                    player.seekTo(0)
+                    player.playWhenReady = true
+                }
             }
         }
         override fun onDownstreamFormatChanged(eventTime: AnalyticsListener.EventTime, mediaLoadData: MediaLoadData) {
@@ -83,11 +94,14 @@ class ExoPlayerKit(private val context: Context, private val eventBus: EventBus)
         }
     }
     init { player.addAnalyticsListener(analyticsListener) }
-    override fun prepare(hlsUrl: String, initialBitrateCapKbps: Int?) {
-        preparedAt = System.currentTimeMillis()
+    override fun prepare(hlsUrl: String, initialBitrateCapKbps: Int?, videoId: String?) {
+        preparedAt = System.currentTimeMillis(); loopCount = 0; currentVideoId = videoId
         initialBitrateCapKbps?.let { trackSelector.parameters = trackSelector.buildUponParameters().setMaxVideoBitrate(it * 1000).build() }
         val mediaSource = buildHlsSource(hlsUrl); player.setMediaSource(mediaSource); player.prepare()
-        onEvent?.invoke("prepared", mapOf("url" to hlsUrl)); eventBus.enqueue(TelemetryEvent("prepared", mapOf("url" to hlsUrl)))
+        val props = mutableMapOf<String, Any?>("url" to hlsUrl)
+        if (videoId != null) props["video_id"] = videoId
+        onEvent?.invoke("prepared", props)
+        eventBus.enqueue(TelemetryEvent("prepared", props))
     }
     override fun play() { player.playWhenReady = true; onEvent?.invoke("playback_start", emptyMap()); eventBus.enqueue(TelemetryEvent("playback_start")) }
     override fun pause() { player.playWhenReady = false; onEvent?.invoke("paused", emptyMap()); eventBus.enqueue(TelemetryEvent("paused")) }
@@ -109,4 +123,3 @@ class PlayerPool(private val context: Context, private val eventBus: EventBus, p
     fun release(player: ExoPlayerKit) { pool.addLast(player) }
     fun preloadNext(hlsUrl: String) { val p = pool.firstOrNull() ?: return; p.prepare(hlsUrl, initialBitrateCapKbps = 700); eventBus.enqueue(TelemetryEvent("preload_started", mapOf("url" to hlsUrl))) }
 }
-

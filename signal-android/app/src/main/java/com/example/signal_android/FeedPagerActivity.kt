@@ -7,10 +7,12 @@ import android.os.*
 import android.view.*
 import android.widget.FrameLayout
 import android.widget.ImageView
+// (SeekBar removed to revert to prior behavior)
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.exoplayer2.ui.PlayerView
 import okhttp3.Cache
 import okhttp3.OkHttpClient
@@ -82,6 +84,7 @@ class VttStoryboardProvider(context: android.content.Context) : ThumbnailProvide
 
 class FeedPagerActivity : AppCompatActivity() {
     private lateinit var pager: ViewPager2
+    private lateinit var swipe: SwipeRefreshLayout
     private var adapter: VideoPagerAdapter? = null
     private lateinit var pool: PlayerPool
     private val flushDebouncer = Debouncer(200)
@@ -95,6 +98,7 @@ class FeedPagerActivity : AppCompatActivity() {
     private var currentPos = 0
     private var viewStartTs = 0L
     private var wasPlayingBeforeStop = false
+    private var backgroundAt: Long = 0L
     private lateinit var thumbnailProvider: ThumbnailProvider
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,7 +112,12 @@ class FeedPagerActivity : AppCompatActivity() {
             offscreenPageLimit = 1
             (getChildAt(0) as? RecyclerView)?.overScrollMode = View.OVER_SCROLL_NEVER
         }
-        setContentView(pager)
+        swipe = SwipeRefreshLayout(this).apply {
+            setOnRefreshListener { fetchAndBind() }
+            setColorSchemeColors(0xFF2196F3.toInt())
+            addView(pager)
+        }
+        setContentView(swipe)
 
         pager.registerOnPageChangeCallback(object: ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
@@ -125,21 +134,84 @@ class FeedPagerActivity : AppCompatActivity() {
         })
 
         // Fetch feed and bind
+        fetchAndBind()
+    }
+
+    private fun fetchAndBind() {
         FeedService(this).fetchFeed { list, err ->
             if (err != null || list.isNullOrEmpty()) {
-                val tv = TextView(this).apply { text = "No videos"; setTextColor(Color.WHITE); setBackgroundColor(Color.BLACK); textSize = 16f; gravity = Gravity.CENTER; layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT) }
-                setContentView(tv)
+                swipe.isRefreshing = false
+                showEmptyState(onRetry = { fetchAndBind() })
                 return@fetchFeed
             }
             items = list
+            setContentView(swipe)
             adapter = VideoPagerAdapter(items, pool, eventBus, thumbnailProvider, flushDebouncer)
             pager.adapter = adapter
-            pager.post { adapter?.getBoundAt(0)?.boundPlayer?.play(); viewStartTs = System.currentTimeMillis(); if (items.size > 1) pool.preloadNext(items[1].hlsUrl) }
+            pager.post { adapter?.getBoundAt(0)?.boundPlayer?.play(); viewStartTs = System.currentTimeMillis(); if (items.size > 1) pool.preloadNext(items[1].hlsUrl); swipe.isRefreshing = false }
         }
     }
 
-    override fun onStart() { super.onStart(); if (wasPlayingBeforeStop) { adapter?.getBoundAt(currentPos)?.boundPlayer?.play(); wasPlayingBeforeStop = false } }
-    override fun onStop() { super.onStop(); val player = adapter?.getBoundAt(currentPos)?.boundPlayer; wasPlayingBeforeStop = player?.exo()?.isPlaying == true; player?.pause() }
+    private fun showEmptyState(onRetry: () -> Unit) {
+        val root = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        }
+        val container = FrameLayout(this)
+        val title = TextView(this).apply {
+            text = "No videos to show"
+            setTextColor(Color.WHITE)
+            textSize = 18f
+            contentDescription = "No videos to show"
+        }
+        val subtitle = TextView(this).apply {
+            text = "Pull to refresh or tap Retry"
+            setTextColor(Color.GRAY)
+            textSize = 14f
+            contentDescription = "Pull to refresh or tap Retry"
+        }
+        val retry = TextView(this).apply {
+            text = "Retry"
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            setPadding(24, 12, 24, 12)
+            setBackgroundColor(0xFF2196F3.toInt())
+            contentDescription = "Retry loading feed"
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { onRetry() }
+        }
+        // Layout vertically centered
+        val wrap = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+        wrap.gravity = Gravity.CENTER
+        val col = FrameLayout(this)
+        val lpTitle = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+        val lpSubtitle = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+        val lpRetry = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+        lpSubtitle.topMargin = 24
+        lpRetry.topMargin = 48
+        col.addView(title, lpTitle)
+        col.addView(subtitle, lpSubtitle)
+        col.addView(retry, lpRetry)
+        root.addView(col, wrap)
+        setContentView(root)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Cold-start policy: if backgrounded >=120s, release players and refetch
+        if (backgroundAt > 0 && System.currentTimeMillis() - backgroundAt >= 120_000) {
+            adapter?.getBoundAt(currentPos)?.boundPlayer?.let { pool.release(it) }
+            adapter = null
+            items = emptyList()
+            backgroundAt = 0L
+            fetchAndBind()
+            return
+        }
+        backgroundAt = 0L
+        if (wasPlayingBeforeStop) { adapter?.getBoundAt(currentPos)?.boundPlayer?.play(); wasPlayingBeforeStop = false }
+    }
+    override fun onStop() { super.onStop(); val player = adapter?.getBoundAt(currentPos)?.boundPlayer; wasPlayingBeforeStop = player?.exo()?.isPlaying == true; player?.pause(); backgroundAt = System.currentTimeMillis() }
     override fun onDestroy() { super.onDestroy(); adapter?.getBoundAt(currentPos)?.boundPlayer?.let { pool.release(it) } }
 
     private fun emitViewEnd(item: VideoItem, pk: ExoPlayerKit?) {
@@ -167,12 +239,17 @@ class VideoPagerAdapter(
         val overlay = ScrubOverlayView(parent.context)
         val error = ErrorOverlayView(parent.context)
         root.addView(pv); root.addView(overlay); root.addView(error)
-        return VideoViewHolder(root, pv, overlay, error, thumbnailProvider, eventBus, flushDebouncer, pool)
+        return VideoViewHolder(root, pv, overlay, error, thumbnailProvider, eventBus, flushDebouncer, pool, this)
     }
     override fun onBindViewHolder(holder: VideoViewHolder, position: Int) { val item = items[position]; val pk = pool.acquire(); holder.bind(item, pk); bound[position] = holder }
     override fun onViewRecycled(holder: VideoViewHolder) { super.onViewRecycled(holder); holder.unbind(); bound.entries.removeAll { it.value == holder } }
     override fun getItemCount(): Int = items.size
     fun getBoundAt(position: Int): VideoViewHolder? = bound[position]
+
+    // Pause every bound player except the one at currentPos
+    fun pauseAllExcept(currentPos: Int) {
+        bound.forEach { (pos, holder) -> if (pos != currentPos) holder.boundPlayer?.pause() }
+    }
 }
 
 class ScrubOverlayView(context: android.content.Context): FrameLayout(context) {
@@ -193,7 +270,8 @@ class VideoViewHolder(
     private val thumbProvider: ThumbnailProvider,
     private val eventBus: EventBus,
     private val flushDebouncer: Debouncer,
-    private val pool: PlayerPool
+    private val pool: PlayerPool,
+    private val owner: VideoPagerAdapter
 ): RecyclerView.ViewHolder(root) {
     var boundPlayer: ExoPlayerKit? = null; private set
     private var item: VideoItem? = null
@@ -201,21 +279,42 @@ class VideoViewHolder(
     private var wasPlayingBeforeScrub = false
     private val handler = Handler(Looper.getMainLooper())
     private var lastThumbMs = 0L
+    // (seek bar removed)
     fun bind(item: VideoItem, pk: ExoPlayerKit) {
         this.item = item; boundPlayer = pk; playerView.player = pk.exo(); playerView.contentDescription = "Video ${item.id}"
-        playerView.setOnClickListener { val p = boundPlayer?.exo() ?: return@setOnClickListener; if (p.isPlaying) { pause() } else { play() }; eventBus.enqueue(TelemetryEvent("tap_play_pause", mapOf("playing" to isPlaying))); flushDebouncer.call { eventBus.flushNow() } }
-        val detector = GestureDetector(playerView.context, object: GestureDetector.SimpleOnGestureListener() {
-            override fun onLongPress(e: MotionEvent) { wasPlayingBeforeScrub = isPlaying; pause(); overlay.visibility = View.VISIBLE; eventBus.enqueue(TelemetryEvent("preview_scrub_start")); updateScrub(e.x); flushDebouncer.call { eventBus.flushNow() } }
-            override fun onScroll(e1: MotionEvent, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean { if (overlay.visibility == View.VISIBLE) { updateScrub(e2.x); return true }; return false }
-        })
-        playerView.setOnTouchListener { _, ev -> detector.onTouchEvent(ev); if (ev.action == MotionEvent.ACTION_UP || ev.action == MotionEvent.ACTION_CANCEL) { if (overlay.visibility == View.VISIBLE) { overlay.visibility = View.GONE; val dur = (boundPlayer?.durationMs() ?: 0L).coerceAtLeast(100L); val width = playerView.width.coerceAtLeast(1); val fraction = (ev.x / width).coerceIn(0f, 1f); val targetMs = (fraction * dur).toLong(); boundPlayer?.seek(targetMs); if (wasPlayingBeforeScrub) play(); eventBus.enqueue(TelemetryEvent("preview_scrub_commit", mapOf("ms" to targetMs))); flushDebouncer.call { eventBus.flushNow() } } }; false }
-        errorOverlay.onRetry = { errorOverlay.visibility = View.GONE; boundPlayer?.prepare(item.hlsUrl, initialBitrateCapKbps = 700); play() }
-        pk.onEvent = { name, _ -> when (name) { "playback_start" -> { isPlaying = true; errorOverlay.visibility = View.GONE }; "paused", "ended" -> isPlaying = false; "error", "playback_error" -> { isPlaying = false; errorOverlay.visibility = View.VISIBLE; eventBus.enqueue(TelemetryEvent("playback_error", mapOf("video_id" to item.id))); flushDebouncer.call { eventBus.flushNow() } } } }
-        pk.prepare(item.hlsUrl, initialBitrateCapKbps = 700)
+        // (no seek bar)
+        playerView.setOnClickListener {
+            val p = boundPlayer?.exo() ?: return@setOnClickListener
+            val wasPlaying = p.isPlaying
+            if (wasPlaying) { pause() } else { play() }
+            if (!wasPlaying) {
+                // when we just started playing, ensure others are paused
+                owner.pauseAllExcept(bindingAdapterPosition)
+            }
+            eventBus.enqueue(TelemetryEvent("tap_play_pause", mapOf("playing" to isPlaying)))
+            flushDebouncer.call { eventBus.flushNow() }
+        }
+        if (BuildConfig.ENABLE_LONG_PRESS_SCRUB) {
+            val detector = GestureDetector(playerView.context, object: GestureDetector.SimpleOnGestureListener() {
+                override fun onLongPress(e: MotionEvent) { wasPlayingBeforeScrub = isPlaying; pause(); overlay.visibility = View.VISIBLE; eventBus.enqueue(TelemetryEvent("preview_scrub_start")); updateScrub(e.x); flushDebouncer.call { eventBus.flushNow() } }
+                override fun onScroll(e1: MotionEvent, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean { if (overlay.visibility == View.VISIBLE) { updateScrub(e2.x); return true }; return false }
+            })
+            playerView.setOnTouchListener { _, ev -> detector.onTouchEvent(ev); if (ev.action == MotionEvent.ACTION_UP || ev.action == MotionEvent.ACTION_CANCEL) { if (overlay.visibility == View.VISIBLE) { overlay.visibility = View.GONE; val dur = (boundPlayer?.durationMs() ?: 0L).coerceAtLeast(100L); val width = playerView.width.coerceAtLeast(1); val fraction = (ev.x / width).coerceIn(0f, 1f); val targetMs = (fraction * dur).toLong(); boundPlayer?.seek(targetMs); if (wasPlayingBeforeScrub) play(); eventBus.enqueue(TelemetryEvent("preview_scrub_commit", mapOf("ms" to targetMs))); flushDebouncer.call { eventBus.flushNow() } } }; false }
+        } else {
+            overlay.visibility = View.GONE
+            playerView.setOnTouchListener(null)
+        }
+        errorOverlay.onRetry = { errorOverlay.visibility = View.GONE; boundPlayer?.prepare(item.hlsUrl, initialBitrateCapKbps = 700, videoId = item.id); play() }
+        pk.onEvent = { name, _ -> when (name) { "playback_start" -> { isPlaying = true; errorOverlay.visibility = View.GONE }; "paused", "ended" -> { isPlaying = false }; "error", "playback_error" -> { isPlaying = false; errorOverlay.visibility = View.VISIBLE; eventBus.enqueue(TelemetryEvent("playback_error", mapOf("video_id" to item.id))); flushDebouncer.call { eventBus.flushNow() } } } }
+        pk.prepare(item.hlsUrl, initialBitrateCapKbps = 700, videoId = item.id)
+
+        // (no seek bar listeners)
     }
     fun unbind() { pause(); boundPlayer?.dispose(); boundPlayer?.let { pool.release(it) }; boundPlayer = null; item = null }
     private fun play() { boundPlayer?.play(); isPlaying = true }
     private fun pause() { boundPlayer?.pause(); isPlaying = false }
     private fun updateScrub(x: Float) { val it = item ?: return; val dur = (boundPlayer?.durationMs() ?: 0L).coerceAtLeast(100L); val width = playerView.width.coerceAtLeast(1); val fraction = (x / width).coerceIn(0f, 1f); val targetSec = (fraction * dur).toLong() / 1000.0; overlay.label.text = toTime(targetSec); overlay.x = (playerView.width - overlay.width) / 2f; overlay.visibility = View.VISIBLE; val now = SystemClock.uptimeMillis(); if (now - lastThumbMs < 120) return; lastThumbMs = now; thumbProvider.thumbnail(it, targetSec) { bmp -> handler.post { overlay.image.setImageBitmap(bmp) } } }
     private fun toTime(seconds: Double): String { val total = seconds.toInt(); val m = total / 60; val s = total % 60; return String.format("%02d:%02d", m, s) }
+
+    // (no seek bar update helpers)
 }
