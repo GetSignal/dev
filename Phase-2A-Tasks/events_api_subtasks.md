@@ -1,5 +1,7 @@
 
-# Events API Subtasks Breakdown
+# Events API Subtasks Breakdown (Canonical Checklist)
+This is the authoritative implementation checklist for `/v1/events`. Follow this file when building the service. See
+`events_api_implementation_prompt.md` for context/standards.
 
 ## Task 1a: Event Envelope Schema Definition
 **Priority:** P1 - Foundation  
@@ -167,12 +169,13 @@
 **Estimated Time:** 3-4 hours
 
 **Deliverables:**
-- Kinesis/S3/Redis queue adapters
+- Firehose→S3 adapter (primary, MVP)
+- Optional: Redis adapter for online features
 - Event forwarding logic
 - Error handling for queue failures
 
 **Acceptance Criteria:**
-- Successfully queues validated events
+- Successfully sends validated events to Firehose→S3
 - Handles queue service outages gracefully
 - Implements retry logic for failed sends
 - Maintains event ordering where required

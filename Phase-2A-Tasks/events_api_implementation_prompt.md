@@ -1,7 +1,8 @@
-# Events API Implementation
+# Events API — Context & Standards (Stages)
 
 ## Core Objective
-In a systematic and phased approach, implement a production-ready `/v1/events` REST endpoint that accepts batched telemetry from iOS/Android clients for the Signal TikTok-like app, with schema validation, PII protection, rate limiting, and downstream queue integration. Ask follow-up or clarifying question if required. Use the AWS CLI to access required services.
+Define the quality bar and operating standards for a production‑ready `/v1/events` REST endpoint. The canonical,
+execution‑ready checklist is `Phase-2A-Tasks/events_api_subtasks.md` — implement from that file.
 
 ## Context Documents
 You have been provided with:
@@ -9,9 +10,10 @@ You have been provided with:
 2. **Events API Subtasks Breakdown** - Your implementation roadmap
 
 ## Implementation Order & Dependencies
-Follow this exact sequence based on the dependency chain:
+Use the checklist and dependency graph in `events_api_subtasks.md`. The “Phases” below are renamed to “Stages” to
+avoid confusion with roadmap phases.
 
-### Phase 1: Schema Foundation (Tasks 1a → 1b → 1c)
+### Stage 1: Schema Foundation (Tasks 1a → 1b → 1c)
 **Task 1a: Event Envelope Schema Definition**
 - Implement `/services/api/events/schema/envelope.js`
 - Use the exact envelope structure from Section 3.3 of the Agent Guide
@@ -33,7 +35,7 @@ Follow this exact sequence based on the dependency chain:
 - Return structured error responses for 400 status codes
 - Provide clear, actionable error messages
 
-### Phase 2: API Endpoint (Tasks 2a → 2b → 2c)
+### Stage 2: API Endpoint (Tasks 2a → 2b → 2c)
 **Task 2a: Route Setup & Configuration**
 - Implement `/services/api/events/routes.js`
 - Define POST `/v1/events` route (note the versioned path requirement)
@@ -52,7 +54,7 @@ Follow this exact sequence based on the dependency chain:
 - Return 400 for validation failures with specific error details
 - Maintain consistent JSON response structure
 
-### Phase 3: Data Protection (Tasks 3a, 3b → 3c)
+### Stage 3: Data Protection (Tasks 3a, 3b → 3c)
 **Task 3a: PII Detection Rules**
 - Implement `/services/api/events/sanitization/piiDetector.js`
 - Focus on telemetry-specific PII patterns
@@ -71,25 +73,25 @@ Follow this exact sequence based on the dependency chain:
 - Apply sanitization before downstream processing
 - Log sanitization actions
 
-### Phase 4 & 5: Infrastructure (Parallel with Phase 3)
+### Stage 4 & 5: Infrastructure (Parallel with Stage 3)
 **Task 4: Rate Limiting Implementation**
 - Basic rate limiting per client (use `device_id` or IP)
 - Return 429 when limits exceeded
 - Suggest: 1000 requests/hour per device_id
 
 **Task 5: Queue Integration Setup**
-- Integrate with Kinesis/S3/Redis for downstream processing
+- Integrate with Firehose→S3 (MVP) for downstream lake; Redis optional for online features
 - Handle queue service outages gracefully
 - Implement retry logic for failed queue operations
 
-### Phase 6: Testing (After corresponding implementations)
+### Stage 6: Testing (After corresponding implementations)
 **Tasks 6a-6d: Comprehensive Testing**
 - Unit tests for each component
 - Integration tests for complete request lifecycle
 - Rate limiting and PII redaction test scenarios
 - Mock queue services for isolated testing
 
-### Phase 7: Operations (Parallel with testing)
+### Stage 7: Operations (Parallel with testing)
 **Task 7: Error Handling & Monitoring**
 - Structured logging and metrics
 - Health check endpoints
@@ -137,12 +139,10 @@ Follow this exact sequence based on the dependency chain:
 - Structure: `/services/api/events/` for Lambda handlers
 
 ### Queue Services Integration
-**Primary Queues (Required):**
-1. **Amazon Kinesis Streams** - Primary event streaming for telemetry
-   - Route: `/v1/events` API → Kinesis → downstream processors
-2. **Redis (ElastiCache)** - Hot data & real-time aggregations
-   - Keys: `user:{uid}:queue`, trending data, counters
-3. **Amazon EventBridge** - Pipeline orchestration triggers (if needed)
+**Primary Sink (MVP):**
+1. **Amazon Kinesis Firehose → S3** — Durable ingestion to the data lake (matches AGENTS.md and current code)
+2. **Redis (ElastiCache)** — Optional for online aggregations / hot paths
+3. **Amazon EventBridge** — Optional for pipeline triggers
 
 ### Rate Limiting Storage
 - **Redis (ElastiCache)** - Primary choice for scalability
@@ -163,4 +163,4 @@ Follow this exact sequence based on the dependency chain:
 - **CloudFormation/CDK** for infrastructure (if needed)
 
 ## Implementation Ready
-You now have all required context and specifications. Implement each subtask in the dependency order specified, creating production-ready AWS Lambda functions with proper error handling, logging, and testing coverage.
+Proceed with `events_api_subtasks.md` to implement; this document defines standards and acceptance bars only.

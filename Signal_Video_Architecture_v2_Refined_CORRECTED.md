@@ -58,7 +58,7 @@ Persist rows:
 **Telemetry**
 Batch & debounce (~200ms) to `/v1/events`:
 `view_start`, `view_end(dwell_ms, percent_complete)`, `tap_play_pause`, `preview_scrub_start/commit`, `playback_error`, plus `ttff`, `rebuffer_count/duration`, `selected_bitrate`.
-Server: API → Kinesis → S3 (offline) + Redis (online features).
+Server (MVP): API → **Firehose → S3** (offline) + Redis (online features).
 
 ---
 ## Feed & Ranking

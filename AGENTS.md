@@ -52,29 +52,31 @@ Implemented event names include: `view_start`, `view_end`, `tap_play_pause`, `pr
 
 Backend (Lambda) additional:
 - `FEED_LIMIT` (default 20)
-- `FALLBACK_DAYS` (default 3; today + previous N−1)
+- `FALLBACK_DAYS` (default 5; today + previous N−1)
 - `TRENDING_REDIS_URL` (e.g., `rediss://<endpoint>:6379`)
 - `TRENDING_REDIS_AUTH_SECRET_ARN` (Secrets Manager ARN holding Redis auth token)
 - (Optional) `TRENDING_REDIS_AUTH_TOKEN` for dev/local when no secret is used
 
 ## Implemented (iOS)
 - Autoplay: visible player only; prefetch players prepared with `autoPlay=false`.
-- Single play trigger: starts when item is ready and attached; no duplicate play paths.
-- Looping: seamless in‑view loop; emits `playback_loop` on each wrap; `view_end` only on exit.
-- Pause guarantees: user pause disables auto‑resume for that item; pauses any non‑visible players.
-- Background policy: if backgrounded ≥120s, cold‑start feed and release players on foreground.
-- Long‑press scrub: disabled by default via `ENABLE_LONG_PRESS_SCRUB`; scaffolded state machine for safe resume‑only‑if‑was‑playing.
-- Gesture tuning: tap attached to video surface; non‑cancelling; paging enabled (in progress: see challenges).
+- Single play trigger: starts when item is ready and attached; no duplicate play paths. Binder now uses per-cell UUID tokens to ensure async manifest/player work only lands on the intended item (prevents stale attachments on reuse).
+- Looping: seamless in-view loop; emits `playback_loop` on each wrap; `view_end` only on exit.
+- Pause guarantees: user pause disables auto-resume for that item; pauses any non-visible players.
+- Background policy: if backgrounded ≥120s, cold-start feed and release players on foreground.
+- Long-press scrub: disabled by default via `ENABLE_LONG_PRESS_SCRUB`; scaffolded state machine for safe resume-only-if-was-playing.
+- Gesture tuning: tap attached to video surface; non-cancelling; paging enabled (in progress: see challenges).
 - Empty state: `EmptyFeedView` with "Pull to refresh or tap Retry" and accessibility labels; Retry calls `FeedViewModel.loadInitialFeed()`.
-- Pull‑to‑refresh: `FeedView` uses `.refreshable { await loadInitialFeed() }`.
+- Pull-to-refresh: `FeedView` uses `.refreshable { await loadInitialFeed() }`.
+- Player pooling: `PlayerPool` (2–3 instances) re-enabled by default with an emergency `DISABLE_PLAYER_POOL=1` env toggle; pooled players are guarded by the binding tokens above.
 
 ## Implemented (Android)
-- Visible‑only playback enforcement on user action; pauses other bound items when one starts.
-- Long‑press scrub disabled by default via `BuildConfig.ENABLE_LONG_PRESS_SCRUB`.
+- Visible-only playback enforcement on user action; pauses other bound items when one starts.
+- Long-press scrub disabled by default via `BuildConfig.ENABLE_LONG_PRESS_SCRUB`.
 - Feed networking wired; PlayerKit integrated.
-- Empty state: friendly message with "Pull to refresh or tap Retry" and a Retry button that re‑fetches the feed.
-- Pull‑to‑refresh: `SwipeRefreshLayout` wraps `ViewPager2`; refresh triggers feed reload.
-- Background policy: mirrors iOS 120s cold‑start behavior (release players and refetch on resume after ≥120s).
+- Binding safeguards: RecyclerView holders use per-bind tokens so deferred callbacks (thumbnail fetch, retries) no longer touch recycled items.
+- Empty state: friendly message with "Pull to refresh or tap Retry" and a Retry button that re-fetches the feed.
+- Pull-to-refresh: `SwipeRefreshLayout` wraps `ViewPager2`; refresh triggers feed reload.
+- Background policy: mirrors iOS 120s cold-start behavior (release players and refetch on resume after ≥120s).
 
 ## Data & Backend
 - `/v1/feed`, `/v1/events` (Firehose→S3), `/v1/manifest` with `hls_url` override for testing.

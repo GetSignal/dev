@@ -1,5 +1,5 @@
 
-# Ticket 3 — iOS storyboard provider (WebVTT sprites) + long-press scrub
+# Ticket 3 — iOS storyboard provider (WebVTT sprites) + long-press scrub **Deferred Future Implementation**
 **Date:** 2025-08-16  
 **Priority:** P1
 

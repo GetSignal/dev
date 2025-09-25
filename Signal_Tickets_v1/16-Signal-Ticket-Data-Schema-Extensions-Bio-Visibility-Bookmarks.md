@@ -38,3 +38,34 @@ Use **“Signal — Agent Guide (Production Build Spec)”** as the authoritativ
 ## ACCEPTANCE
 - Tables/GSIs deployed. DAOs can set `bio/link_url`, toggle `visibility`, and upsert bookmarks idempotently.
 - No regressions to existing read paths.
+
+---
+**Update 2025-09-08: Add Video Caption & Audio fields (central schema)**
+
+### New Fields (Data Model)
+- `Videos.caption : string` (UTF-8, soft limit 2,200 chars; store canonical text only).
+- `Videos.audio : object` with keys:
+  - `title : string?`
+  - `artist : string?`
+  - `is_original : boolean?` (default `true`; when true and no `title`, clients render “original sound — @author”)
+
+### Indexing & Validation
+- No new GSIs required at launch (fields are read via `/v1/feed` by primary key).
+- Validate caption length ≤ 2,200; strip control chars; trim whitespace.
+- Audio fields optional; omit absent keys rather than storing empty strings.
+
+### Migration/Backfill
+- Backfill not required for existing rows (clients gracefully hide overlays when fields are absent).
+- Writes idempotent; do not alter `media_manifest.json` structure.
+
+### Contracts Impacted
+- **Ticket 07**: `/v1/feed` item extended to include `caption` and `audio` (read path).
+- **Ticket 22**: Upload Preflight optionally accepts `caption` and `audio` (write path).
+---
+
+---
+**Finalized 2025-09-08: Constraints Approved**
+- `Videos.caption` max length **2,200 chars** (truncate on write; sanitize control chars).
+- `Videos.audio` keys fixed: **title**, **artist**, **is_original** (optional keys; omit if unknown).
+- Acceptance: automated schema tests validate max length and key set.
+---

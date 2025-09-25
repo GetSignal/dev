@@ -6,7 +6,7 @@ const ddb = new DynamoDBClient({});
 const secrets = new SecretsManagerClient({});
 const TABLE = process.env.VIDEOS_TABLE!;
 const FEED_LIMIT = Number(process.env.FEED_LIMIT ?? "20");
-const FALLBACK_DAYS = Math.max(1, Number(process.env.FALLBACK_DAYS ?? "3"));
+const FALLBACK_DAYS = Math.max(1, Number(process.env.FALLBACK_DAYS ?? "5"));
 const TRENDING_REDIS_URL = process.env.TRENDING_REDIS_URL;
 const TRENDING_REDIS_AUTH_TOKEN = process.env.TRENDING_REDIS_AUTH_TOKEN;
 const TRENDING_REDIS_AUTH_SECRET_ARN = process.env.TRENDING_REDIS_AUTH_SECRET_ARN;
@@ -149,6 +149,14 @@ export const handler = async (event: any) => {
       exploration_rate: pickExplorationRate(),
       items,
     };
+
+    if (items.length === 0) {
+      console.warn("/v1/feed empty_result", {
+        fallbackDays: FALLBACK_DAYS,
+        feedLimit: FEED_LIMIT,
+        cursor: body.cursor,
+      });
+    }
 
     return { statusCode: 200, headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
   } catch (e) {

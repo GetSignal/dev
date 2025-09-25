@@ -188,3 +188,15 @@
 - RN/FlashList/Redux, caption toggle, advanced video editing, comments/live streams, complex auth UX beyond Cognito basics.
 
 > Use this guide as the system prompt/context for coding. Prefer concise, strongly typed code; add tests where indicated; adhere to budgets and guardrails above.
+
+---
+**Update 2025-09-09: Out-of-Scope — Real-Time Interactivity (Explicit)**
+
+The following features are **out of scope for now** and must **not** be implemented in this ticket/guide:
+- **Live streaming**
+- **Real-time comments** (including live chat on videos or streams)
+- **Direct messaging (DMs)**
+- **Instant/push notifications**
+
+Rationale: defer real-time infrastructure and moderation until core feed, creation, and reliability SLOs are met. This does **not** affect existing non-real-time telemetry or UI stubs.
+---

@@ -12,7 +12,7 @@ resource "aws_lambda_function" "feed" {
       EXPLORATION_MIN = "0.10"
       EXPLORATION_MAX = "0.20"
       FEED_LIMIT     = "20"
-      FALLBACK_DAYS  = "3"
+      FALLBACK_DAYS  = "5"
       TRENDING_REDIS_URL             = var.trending_redis_url
       TRENDING_REDIS_AUTH_TOKEN      = var.trending_redis_auth_token
       TRENDING_REDIS_AUTH_SECRET_ARN = var.trending_redis_auth_secret_arn
@@ -44,7 +44,7 @@ resource "aws_lambda_function" "trending_writer" {
   environment {
     variables = {
       VIDEOS_TABLE = aws_dynamodb_table.videos.name
-      FALLBACK_DAYS = "3"
+      FALLBACK_DAYS = "5"
       TRENDING_SET_KEY = "trending:v1"
       TRENDING_SIZE = "1000"
       TRENDING_REDIS_URL = var.trending_redis_url

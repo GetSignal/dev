@@ -5,7 +5,7 @@ import { createClient } from "redis";
 const ddb = new DynamoDBClient({});
 const secrets = new SecretsManagerClient({});
 const TABLE = process.env.VIDEOS_TABLE!;
-const FALLBACK_DAYS = Math.max(1, Number(process.env.FALLBACK_DAYS ?? "3"));
+const FALLBACK_DAYS = Math.max(1, Number(process.env.FALLBACK_DAYS ?? "5"));
 const TRENDING_SET_KEY = process.env.TRENDING_SET_KEY ?? "trending:v1";
 const TRENDING_SIZE = Math.max(100, Number(process.env.TRENDING_SIZE ?? "1000"));
 const TRENDING_REDIS_URL = process.env.TRENDING_REDIS_URL!;

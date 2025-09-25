@@ -1,4 +1,3 @@
-
 # Ticket 22 — Upload Session API & Preflight
 **Date:** 2025-08-18  
 **Priority:** P1
@@ -32,3 +31,31 @@ No TikTok or third‑party scraping. Follow existing telemetry batching and vers
 ## ACCEPTANCE
 - Mobile clients can acquire sessions, upload parts, complete, and trigger the pipeline.
 - Duplicate file (same sha256) returns the same `video_id` (no duplicate ingest).
+
+---
+**Update 2025-09-08: Accept optional caption/audio metadata at upload time**
+
+### New Preflight/Session Fields (Optional)
+In the upload preflight (and/or initial POST), allow clients to send:
+- `caption : string` (≤ 2,200 chars; UTF-8)
+- `audio : object` with optional `title`, `artist`, `is_original`
+
+### Behavior
+- Store provided metadata into `Videos.caption` and `Videos.audio` (see Ticket 16).
+- If omitted, fields remain absent; clients fall back per Ticket 07 rules.
+- No changes to transcode pipeline or `media_manifest.json` outputs.
+
+### Validation
+- Enforce length and character sanitation.
+- Reject only on egregious input (e.g., > 10 KB body for caption); otherwise truncate safely.
+
+### Compatibility
+- Backward-compatible with existing clients (fields optional).
+---
+
+---
+**Finalized 2025-09-08: Upload Constraints**
+- Preflight accepts `caption` (≤ **2,200 chars**) and `audio` (keys: **title**, **artist**, **is_original**).
+- Validation: truncate/sanitize caption; ignore unknown audio keys.
+- Acceptance: integration tests confirm writes persist to `Videos.caption`/`Videos.audio`.
+---

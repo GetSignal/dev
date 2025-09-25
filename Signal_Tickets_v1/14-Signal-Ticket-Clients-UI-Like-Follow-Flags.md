@@ -27,3 +27,17 @@ Use **“Signal — Agent Guide (Production Build Spec)”** as the authoritativ
 ## ACCEPTANCE
 - Feature flag off → no UI.
 - Flag on → Like/Follow works with optimistic updates; telemetry captured; tests pass.
+
+## Out of Scope
+
+---
+**Update 2025-09-09: Out-of-Scope — Real-Time Interactivity (Explicit)**
+
+The following features are **out of scope for now** and must **not** be implemented in this ticket/guide:
+- **Live streaming**
+- **Real-time comments** (including live chat on videos or streams)
+- **Direct messaging (DMs)**
+- **Instant/push notifications**
+
+Rationale: defer real-time infrastructure and moderation until core feed, creation, and reliability SLOs are met. This does **not** affect existing non-real-time telemetry or UI stubs.
+---

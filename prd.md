@@ -87,7 +87,7 @@
 ### 6.4 Ranking & Data
 - `/v1/feed` returns `media_manifest_url` per item; ranker P99 ≤ **30 ms**, fallback to Trending when exceeded.
 - Client exploration rate **10–20%** mixed into pages.
-- Telemetry via `/v1/events` (**batched & debounced ~200 ms**): `view_start`, `view_end(dwell_ms, percent_complete)`, `tap_play_pause`, `preview_scrub_start/commit`, `time_to_first_frame`, `rebuffer`, `selected_bitrate`, `playback_error`.
+- Telemetry via `/v1/events` (**batched & debounced ~200 ms**): `view_start`, `view_end(dwell_ms, percent_complete)`, `tap_play_pause`, `preview_scrub_start/commit`, `time_to_first_frame`, `rebuffer`, `selected_bitrate`, `playback_error`. Server ingest (MVP): **Firehose→S3** data lake.
 
 ### 6.5 Data Model & Storage
 - **DynamoDB (Videos)**: `PK=video_id`; **GSI1** `owner_id/-created_at`; **GSI2** `day_bucket/-engagement_score`.
@@ -142,7 +142,7 @@
 ---
 
 ## 12. Dependencies
-- AWS: Cognito, S3, CloudFront, MediaConvert, EventBridge/Step Functions, Rekognition, DynamoDB, (optionally) Kinesis/Redis.  
+- AWS: Cognito, S3, CloudFront, MediaConvert, EventBridge/Step Functions, Rekognition, DynamoDB, **Firehose** (primary events sink), (optionally) Kinesis/Redis.  
 - Mobile: AVPlayer/ExoPlayer, URLCache/OkHttp.  
 - CI/CD: GitHub Actions or equivalent; Makefile.
 

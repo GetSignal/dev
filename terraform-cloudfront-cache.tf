@@ -56,9 +56,45 @@ resource "aws_cloudfront_distribution" "cdn" {
     compress               = true
   }
 
+  # Serve media_manifest.json with short TTL + SWR
+  ordered_cache_behavior {
+    path_pattern           = "*/media_manifest.json"
+    target_origin_id       = "s3-storyboards"
+    viewer_protocol_policy = "redirect-to-https"
+    cache_policy_id        = aws_cloudfront_cache_policy.manifest_short_ttl.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.manifest_swr.id
+    compress               = true
+  }
+
   price_class = "PriceClass_100"
   restrictions { geo_restriction { restriction_type = "none" } }
   viewer_certificate { cloudfront_default_certificate = true }
+}
+
+# Manifest: short TTL + SWR (`Cache-Control` header injection)
+resource "aws_cloudfront_response_headers_policy" "manifest_swr" {
+  name = "signal-manifest-swr"
+  custom_headers_config {
+    items {
+      header   = "Cache-Control"
+      override = true
+      value    = "public, max-age=30, stale-while-revalidate=60, stale-if-error=60"
+    }
+  }
+}
+
+resource "aws_cloudfront_cache_policy" "manifest_short_ttl" {
+  name    = "signal-manifest-short-ttl"
+  min_ttl = 0
+  default_ttl = 30
+  max_ttl = 60
+  parameters_in_cache_key_and_forwarded_to_origin {
+    enable_accept_encoding_brotli = true
+    enable_accept_encoding_gzip   = true
+    cookies_config { cookie_behavior = "none" }
+    headers_config { header_behavior = "none" }
+    query_strings_config { query_string_behavior = "none" }
+  }
 }
 
 # 5) S3 bucket for storyboard assets

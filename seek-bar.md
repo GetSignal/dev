@@ -82,3 +82,73 @@ Here’s a practical, best‑practice implementation plan for a seek bar that fi
   
   If you want, I can start with Android’s SeekBar overlay in the existing ViewHolder (low risk), then add the iOS UISlider overlay
   after that, matching telemetry and behavior exactly.
+
+=================
+
+  > Overview
+  
+  - Visibility: Hidden while playing; shows when paused or during interaction; auto-hides 1.5–2.0 s after resume.
+  - Placement: Bottom overlay above safe area/home indicator; full‑width with 16 pt/dp horizontal inset; sits atop a subtle
+  bottom scrim.
+  - Components: Slider (track + thumb), current time label, duration label, optional preview thumbnail bubble above the
+  thumb.
+  
+  Common Specs
+  
+  - Scrim: 72–96 pt/dp tall gradient (transparent→#000 60%) to separate controls from video.
+  - Track: Height 4 pt/dp; active color = brand (iOS: systemBlue; Android: #2196F3), inactive = white 30%, buffered
+  (optional MVP) = white 50%.
+  - Thumb: Size 24 pt/dp; touch target minimum 44 pt (iOS) / 48 dp (Android).
+  - Labels: Current (left) and duration (right), white 90%, 12–14 pt/dp; monospace or tabular figures preferred.
+  - Preview Bubble: 120×68 pt/dp (16:9) with 8 pt radius, drop shadow; only shown when WebVTT sprites (#xywh) exist; sits
+  56–72 pt/dp above thumb.
+  - Interaction: Drag updates label/preview at ~8–12 FPS; on release, seek; resume only if it was playing before; cancel
+  returns to prior state.
+  - Gesture Safety: Non‑greedy; vertical drags still page. Horizontal drag threshold 8–12 pt/dp before intercept.
+  - Accessibility: Slider label “Video position”; value announces “mm:ss of mm:ss”; actions labeled (“Preview scrub start/
+  commit”, “Retry” remains in error overlay); contrast ≥ 4.5:1.
+  - Auto‑Hide: When playing, fade out overlay in 250 ms after 1.5–2.0 s inactivity.
+  
+  iOS
+  
+  - Layout: UIStackView pinned to bottom safe area; [current] [slider] [duration], 16 pt padding; preview bubble centered
+  above slider thumb.
+  - Gesture Priority: cancelsTouchesInView=false; require slider/tap to fail against pageViewController.gestureRecognizers
+  for vertical pans.
+  - Slider Steps: 1 s increments; continuous updates throttled to ~100–125 ms.
+  - Haptics: Light impact on seek commit and when snapping to start/end (optional).
+  - Colors: Use system colors (e.g., tintColor = .systemBlue); labels UIColor.white.withAlphaComponent(0.9).
+  
+  Android
+  
+  - Layout: FrameLayout bottom overlay inside ViewHolder; SeekBar + two TextViews; preview bubble as ImageView + label
+  above thumb.
+  - Pager Interop: Ensure SeekBar only intercepts horizontal motion; keep ViewPager2 vertical pan unaffected; child
+  RecyclerView overScrollMode=NEVER.
+  - Ripple/States: Standard Material ripple on thumb (optional); SeekBar max = duration seconds; progress by seconds.
+  - Colors: Active = #2196F3; inactive = white 30%; labels white/gray as above.
+  
+  Performance
+  
+  - Throttle: Preview fetch limited to 8–12 FPS; ignore redundant requests within 100–125 ms.
+  - Caching: iOS URLCache ≥ 256 MB; Android OkHttp cache ≥ 50 MB; LRU bitmap cache ≈24 sprites; neighbor prefetch (±1 cue).
+  - Memory: Release preview bitmaps on cell reuse/detach; cancel in‑flight requests on interaction end.
+  
+  Telemetry
+  
+  - Events: preview_scrub_start, preview_scrub_commit {seconds}, existing tap_play_pause, playback_loop, view_end.
+  - Batching: Via existing EventBus (~200 ms debounce), with device/session ids.
+  
+  States & Edge Cases
+  
+  - No VTT: Hide preview image; show time labels only.
+  - Looping: Seek must not disable looping; on end, loop from 0.
+  - Background/Rotation: Respect 120 s cold‑start policy; on rotation, keep single active player and rebind overlay to
+  current position.
+  
+  Controls & Flags
+  
+  - Feature Flag: SHOW_SEEKBAR (default OFF until paging gesture require‑to‑fail finalized); long‑press scrub stays OFF
+  by default.
+  - User Flow: Tap video → pause → reveal seek bar; drag → preview; release → seek; resume only if playing before;
+  auto‑hide after resume.
